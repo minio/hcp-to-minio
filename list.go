@@ -7,9 +7,9 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
+	"strconv"
 )
 
 const maxSize = 2 << 20 // 2 * MiB
@@ -65,9 +65,8 @@ func downloadObjectList(ctx context.Context, bucket string) error {
 	entryCh := make(chan Entry, 1000)
 	go func(w io.WriteCloser) {
 		for entry := range entryCh {
-			logDMsg(fmt.Sprintf("received entry in channel>%s", entry.URLName), nil)
+			logDMsg("received entry in channel>"+entry.URLName, nil)
 			if _, err := w.Write([]byte(entry.URLName + "\n")); err != nil {
-				fmt.Println("returning from err>", err)
 				return
 			}
 		}
@@ -81,19 +80,26 @@ func downloadObjectList(ctx context.Context, bucket string) error {
 }
 
 func (hcp *hcpBackend) List(ctx context.Context, bucket string, entryCh chan Entry) error {
-	data := url.Values{}
-	data.Set("type", "directory")
-	data.Set("deleted", "false")
+	//data := url.Values{}
+	//	data.Set("type", "directory")
+	//	data.Set("deleted", "false")
+
 	req, err := http.NewRequest(http.MethodGet, hcp.URL, nil)
+
 	if err != nil {
 		logDMsg(fmt.Sprintf("Couldn't create a request with namespaceURL %s", namespaceURL), err)
 		return err
 	}
 	req.Header.Set("Authorization", authToken)
-	req.Header.Set("Host", hostHeader)
+	req.Host = hostHeader
 
 	resp, err := hcp.Client().Do(req)
+
 	if err != nil {
+		logDMsg("REQUEST URL>"+req.URL.String(), nil)
+		if resp != nil {
+			logDMsg("Resp statuscode =>"+strconv.Itoa(resp.StatusCode), nil)
+		}
 		logDMsg(fmt.Sprintf("Couldn't list namespace directory contents with namespace URL %s", namespaceURL), err)
 		return err
 	}
@@ -101,7 +107,6 @@ func (hcp *hcpBackend) List(ctx context.Context, bucket string, entryCh chan Ent
 	if err := getDirListing2(ctx, reader, entryCh); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -113,6 +118,7 @@ func getDirListing2(ctx context.Context, r io.Reader, entryCh chan Entry) (err e
 		t, err := decoder.Token()
 		// If we are at the end of the file, we are done
 		if err == io.EOF {
+			logDMsg("breaking Dir XML parsing because EOF", nil)
 			break
 		} else if err != nil {
 			log.Fatalf("Error decoding token: %s", err)
