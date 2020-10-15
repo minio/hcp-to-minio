@@ -9,9 +9,11 @@ import (
 	"net/url"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	miniogo "github.com/minio/minio-go/v7"
+	"github.com/minio/minio/pkg/console"
 )
 
 func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi miniogo.ObjectInfo, h http.Header, err error) {
@@ -36,11 +38,11 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	req.Host = hostHeader
 	req.URL.RawQuery = QueryEncode(data)
 	// specify that annotation precede the object data
-	req.Header.Set("X-HCP-CustomMetadataFirst", "true")
+	req.Header["X-HCP-CustomMetadataFirst"] = []string{"true"}
+
 	resp, err := hcp.Client().Do(req)
-	logDMsg("REQUEST GET:>"+req.URL.String(), nil)
-	if resp != nil {
-		logDMsg("Resp statuscode =>"+strconv.Itoa(resp.StatusCode), nil)
+	if debugFlag {
+		console.Println(trace(req, resp))
 	}
 	if err != nil {
 		logDMsg(fmt.Sprintf("Get HCP object failed for %s", req.RequestURI), err)
@@ -51,9 +53,10 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	}
 
 	var (
-		totSz int
-		objSz int
-		doc   Document
+		totSz   int
+		objSz   int
+		annotSz int
+		doc     Document
 	)
 	szStr := resp.Header.Get("Content-Length")
 	totSz, err = strconv.Atoi(szStr)
@@ -66,10 +69,10 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 		if err != nil {
 			return r, oi, h, fmt.Errorf("invalid X-HCP-Size header %w", err)
 		}
+		annotSz = totSz - objSz
 	}
-	annotSz := totSz - objSz
 	reader := io.LimitReader(resp.Body, 1*1024*1024)
-	minioObjName := object // default MinIO object name to same as HCP, unless annotation dictates otherwise
+	minioObjName := strings.TrimPrefix(object, "/rest/") // default MinIO object name to same as HCP, unless annotation dictates otherwise
 	metadata := make(map[string]string)
 	if annotSz > 0 {
 		annotationBuf := make([]byte, annotSz)

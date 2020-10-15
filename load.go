@@ -96,7 +96,9 @@ func (m *migrateState) finish(ctx context.Context) {
 	close(m.objectCh)
 	close(m.failedCh)
 	m.wg.Wait() // wait on workers to finish
-	logMsg(fmt.Sprintf("Migrated %d objects, %d failures", m.getCount(), m.getFailCount()))
+	if !dryRun {
+		logMsg(fmt.Sprintf("Migrated %d objects, %d failures", m.getCount(), m.getFailCount()))
+	}
 }
 func initMigration(ctx context.Context) {
 	if migrationState == nil {
@@ -129,7 +131,7 @@ func migrateObject(ctx context.Context, object string) error {
 		return err
 	}
 	if dryRun {
-		logMsg("DryRun: Will migrate " + object + " =>" + oi.Key)
+		logMsg(migrateMsg(object, oi.Key))
 		return nil
 	}
 	_, err = minioClient.PutObject(ctx, minioBucket, oi.Key, r, oi.Size, miniogo.PutObjectOptions{

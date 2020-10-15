@@ -5,11 +5,14 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
+	"net/http"
 	"net/url"
 	"regexp"
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/minio/minio/pkg/console"
 )
 
 // mustGetSystemCertPool - return system CAs or empty pool in case of error (or windows)
@@ -41,6 +44,44 @@ func logDMsg(msg string, err error) {
 		}
 		fmt.Println(msg, " :", err)
 	}
+}
+func trace(rq *http.Request, rs *http.Response) string {
+	var b = &strings.Builder{}
+
+	fmt.Fprintf(b, "%s", console.Colorize("Request", "[REQUEST] "))
+	fmt.Fprintf(b, "%s", console.Colorize("Method", fmt.Sprintf("%s %s", rq.Method, rq.URL.Path)))
+	if rq.URL.RawQuery != "" {
+		fmt.Fprintf(b, "?%s", rq.URL.RawQuery)
+	}
+	fmt.Fprint(b, "\n")
+	hostStr := strings.Join(rq.Header["Host"], "")
+	fmt.Fprintf(b, "%s", console.Colorize("Host", fmt.Sprintf("Host: %s\n", hostStr)))
+	for k, v := range rq.Header {
+		if k == "Host" {
+			continue
+		}
+		fmt.Fprintf(b, "%s", console.Colorize("ReqHeaderKey",
+			fmt.Sprintf("%s: ", k))+console.Colorize("HeaderValue", fmt.Sprintf("%s\n", strings.Join(v, ""))))
+	}
+
+	fmt.Fprintf(b, "%s", console.Colorize("Response", "[RESPONSE] "))
+	if rs != nil {
+		statusStr := console.Colorize("RespStatus", fmt.Sprintf("%d %s", rs.StatusCode, http.StatusText(rs.StatusCode)))
+		if rs.StatusCode != http.StatusOK {
+			statusStr = console.Colorize("ErrStatus", fmt.Sprintf("%d %s", rs.StatusCode, http.StatusText(rs.StatusCode)))
+		}
+		fmt.Fprintf(b, "%s\n", statusStr)
+
+		for k, v := range rs.Header {
+			fmt.Fprintf(b, "%s", console.Colorize("RespHeaderKey",
+				fmt.Sprintf("%s: ", k))+console.Colorize("HeaderValue", fmt.Sprintf("%s\n", strings.Join(v, ""))))
+		}
+	}
+
+	return b.String()
+}
+func migrateMsg(from, to string) string {
+	return fmt.Sprintf("%s: Migrating %s => %s", console.Colorize("Request", "DryRun"), console.Colorize("Method", from), console.Colorize("Method", to))
 }
 
 // EncodePath encode the strings from UTF-8 byte representations to HTML hex escape sequences

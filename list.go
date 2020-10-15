@@ -11,8 +11,9 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"strconv"
 	"sync"
+
+	"github.com/minio/minio/pkg/console"
 )
 
 const maxSize = 2 << 20 // 2 * MiB
@@ -108,9 +109,8 @@ readloop:
 			if _, err := datawriter.WriteString(entry.objectPath + "\n"); err != nil {
 				return err
 			}
-			fmt.Println("wrote to file entry>", entry.objectPath)
 		case <-readDone:
-			log.Printf(`got stop`)
+			// log.Printf(`got stop`)
 			close(jobs)
 			break readloop
 		}
@@ -122,7 +122,7 @@ readloop:
 
 func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryCh chan Entry, wg *sync.WaitGroup) {
 	for j := range jobs {
-		log.Printf(`Directory: %#v`, j.Root)
+		logDMsg(`Directory: %#v`+j.Root, nil)
 		u, err := url.Parse(hcp.URL)
 		u.Path = EncodePath(path.Join(u.Path, j.Root))
 		urlStr := u.String()
@@ -136,9 +136,12 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 		req.Host = hostHeader
 
 		resp, err := hcp.Client().Do(req)
-		logDMsg("REQUEST:>"+req.URL.String(), nil)
-		if resp != nil {
-			logDMsg("Resp statuscode =>"+strconv.Itoa(resp.StatusCode), nil)
+		// logDMsg("REQUEST:>"+req.URL.String(), nil)
+		// if resp != nil {
+		// 	logDMsg("Resp statuscode =>"+strconv.Itoa(resp.StatusCode), nil)
+		// }
+		if debugFlag {
+			console.Println(trace(req, resp))
 		}
 		if err != nil {
 			logDMsg(fmt.Sprintf("Couldn't list namespace directory contents with namespace URL %s", namespaceURL), err)
@@ -151,7 +154,7 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 			t, err := decoder.Token()
 			// If we are at the end of the file, we are done
 			if err == io.EOF {
-				logDMsg("breaking Dir XML parsing because EOF", nil)
+				//	logDMsg("breaking Dir XML parsing because EOF", nil)
 				break
 			} else if err != nil {
 				log.Fatalf("Error decoding token: %s", err)
@@ -172,7 +175,7 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 					}
 					for _, entry := range dir.Entries {
 						entry.objectPath = path.Join(dir.Path, entry.URLName)
-						fmt.Println("read entry>", entry, " at path>", entry.objectPath)
+						logDMsg("read entry>"+entry.URLName+" at path>"+entry.objectPath, nil)
 
 						switch entry.EntryType {
 						case "object":
@@ -182,7 +185,7 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 							nj := listWorkerJob{
 								Root: entry.objectPath,
 							}
-							log.Printf(`sent new dir job: %#v`, nj.Root)
+							// logDMsg("sent new dir job: "+nj.Root, nil)
 
 							// One more job, adds to wg
 							wg.Add(1)
@@ -192,11 +195,11 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 								jobs <- nj
 							}()
 						default:
-							fmt.Println("ignoring entry>>>", entry.objectPath)
+							logDMsg("Dropped Entry>>>"+entry.objectPath, nil)
 						}
 					}
 					// // And use it for whatever we want to
-					log.Printf("'%s' : %v", dir.namespaceName, dir.Entries)
+					// log.Printf("'%s' : %v", dir.namespaceName, dir.Entries)
 
 				default:
 				}

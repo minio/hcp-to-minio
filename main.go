@@ -28,6 +28,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/minio/cli"
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -93,10 +94,10 @@ func checkMain(ctx *cli.Context) {
 	// 	console.Fatalln(fmt.Errorf("please set --bucket flag to specify starting namespace dir"))
 	// 	return
 	// }
-	if annotation == "" {
-		console.Fatalln(fmt.Errorf("please set --annotation flag to specify annotation"))
-		return
-	}
+	// if annotation == "" {
+	// 	console.Fatalln(fmt.Errorf("please set --annotation flag to specify annotation"))
+	// 	return
+	// }
 
 }
 
@@ -166,7 +167,14 @@ func initMinioClient(ctx *cli.Context) error {
 }
 func migrateMain(cliCtx *cli.Context) {
 	checkMain(cliCtx)
-
+	console.SetColor("Request", color.New(color.FgCyan))
+	console.SetColor("Method", color.New(color.Bold, color.FgWhite))
+	console.SetColor("Host", color.New(color.Bold, color.FgGreen))
+	console.SetColor("ReqHeaderKey", color.New(color.Bold, color.FgWhite))
+	console.SetColor("RespHeaderKey", color.New(color.Bold, color.FgCyan))
+	console.SetColor("RespStatus", color.New(color.Bold, color.FgYellow))
+	console.SetColor("ErrStatus", color.New(color.Bold, color.FgRed))
+	console.SetColor("Response", color.New(color.FgGreen))
 	hcp = &hcpBackend{
 		URL:        namespaceURL,
 		authToken:  authToken,
