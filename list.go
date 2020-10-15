@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -66,10 +67,11 @@ type listWorkerJob struct {
 }
 
 func downloadObjectList(ctx context.Context, bucket string) error {
-	f, err := os.OpenFile(path.Join(dirPath, objListFile), os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(path.Join(dirPath, objListFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
+	datawriter := bufio.NewWriter(f)
 	workerCount := 1
 
 	jobs := make(chan listWorkerJob, workerCount)
@@ -103,16 +105,18 @@ readloop:
 				logDMsg("received non object entry in channel>"+entry.objectPath, nil)
 				continue
 			}
-			if _, err := f.Write([]byte(entry.objectPath + "\n")); err != nil {
+			if _, err := datawriter.WriteString(entry.objectPath + "\n"); err != nil {
 				return err
 			}
+			fmt.Println("wrote to file entry>", entry.objectPath)
 		case <-readDone:
 			log.Printf(`got stop`)
-			close(entryCh)
+			close(jobs)
 			break readloop
 		}
 	}
-	defer f.Close()
+	datawriter.Flush()
+	f.Close()
 	return nil
 }
 
@@ -120,7 +124,7 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 	for j := range jobs {
 		log.Printf(`Directory: %#v`, j.Root)
 		u, err := url.Parse(hcp.URL)
-		u.Path = path.Join(u.Path, j.Root)
+		u.Path = EncodePath(path.Join(u.Path, j.Root))
 		urlStr := u.String()
 		req, err := http.NewRequest(http.MethodGet, urlStr, nil)
 

@@ -124,7 +124,7 @@ func initMigration(ctx context.Context) {
 }
 
 func migrateObject(ctx context.Context, object string) error {
-	r, oi, _, err := hcp.GetObject(bucket, object, annotation)
+	r, oi, _, err := hcp.GetObject(object, annotation)
 	if err != nil {
 		return err
 	}

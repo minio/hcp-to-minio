@@ -14,16 +14,14 @@ import (
 	miniogo "github.com/minio/minio-go/v7"
 )
 
-func (hcp *hcpBackend) GetObject(bucket, object, annotation string) (r io.ReadCloser, oi miniogo.ObjectInfo, h http.Header, err error) {
+func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi miniogo.ObjectInfo, h http.Header, err error) {
 	u, err := url.Parse(namespaceURL)
 	if err != nil {
 		return r, oi, h, err
 	}
-	u.Path = path.Join(u.Path, bucket, object)
+	u.Path = EncodePath(path.Join(u.Path, object))
 	reqURL := u.String() // prints http://foo/bar.html
-	// if versionID != "" {
-	// 	objPath = fmt.Sprintf("%s?version=%s", objPath, versionID)
-	// }
+
 	data := url.Values{}
 	data.Set("type", "whole-object")
 	if annotation != "" {
@@ -36,11 +34,14 @@ func (hcp *hcpBackend) GetObject(bucket, object, annotation string) (r io.ReadCl
 	}
 	req.Header.Set("Authorization", authToken)
 	req.Host = hostHeader
-	req.URL.RawQuery = data.Encode()
-
+	req.URL.RawQuery = QueryEncode(data)
 	// specify that annotation precede the object data
 	req.Header.Set("X-HCP-CustomMetadataFirst", "true")
 	resp, err := hcp.Client().Do(req)
+	logDMsg("REQUEST GET:>"+req.URL.String(), nil)
+	if resp != nil {
+		logDMsg("Resp statuscode =>"+strconv.Itoa(resp.StatusCode), nil)
+	}
 	if err != nil {
 		logDMsg(fmt.Sprintf("Get HCP object failed for %s", req.RequestURI), err)
 		return r, oi, h, err

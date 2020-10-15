@@ -78,7 +78,7 @@ func checkMain(ctx *cli.Context) {
 	}
 
 	dirPath = ctx.GlobalString("data-dir")
-	bucket = ctx.GlobalString("bucket")
+	//	bucket = ctx.GlobalString("bucket")
 	annotation = ctx.GlobalString("annotation")
 
 	if authToken == "" || hostHeader == "" || namespaceURL == "" {
@@ -89,10 +89,10 @@ func checkMain(ctx *cli.Context) {
 		console.Fatalln(fmt.Errorf("path to working dir required, please set --data-dir flag"))
 		return
 	}
-	if bucket == "" {
-		console.Fatalln(fmt.Errorf("please set --bucket flag to specify starting namespace dir"))
-		return
-	}
+	// if bucket == "" {
+	// 	console.Fatalln(fmt.Errorf("please set --bucket flag to specify starting namespace dir"))
+	// 	return
+	// }
 	if annotation == "" {
 		console.Fatalln(fmt.Errorf("please set --annotation flag to specify annotation"))
 		return
@@ -113,10 +113,10 @@ func initMinioClient(ctx *cli.Context) error {
 	accessKey := os.Getenv(EnvMinIOAccessKey)
 	secretKey := os.Getenv(EnvMinIOSecretKey)
 	minioBucket = os.Getenv(EnvMinIOBucket)
-	// if unspecified use the HCP bucket name
-	if minioBucket == "" {
-		minioBucket = bucket
-	}
+	// // if unspecified use the HCP bucket name
+	// if minioBucket == "" {
+	// 	minioBucket = bucket
+	// }
 	if accessKey == "" || secretKey == "" || minioBucket == "" {
 		console.Fatalln(fmt.Errorf("One or more of AccessKey:%s SecretKey: %s Bucket:%s missing", accessKey, secretKey, bucket), "Missing MinIO configuration")
 	}
@@ -177,7 +177,7 @@ func migrateMain(cliCtx *cli.Context) {
 	if !dryRun {
 		logMsg("Init minio client..")
 		if err := initMinioClient(cliCtx); err != nil {
-			logDMsg("Unable to initialize MinIO client, exiting...%w", err)
+			logDMsg("Unable to  initialize MinIO client, exiting...%w", err)
 			return
 		}
 	}
@@ -231,10 +231,10 @@ func main() {
 			Name:  "data-dir, d",
 			Usage: "path to work directory for tool",
 		},
-		cli.StringFlag{
-			Name:  "bucket",
-			Usage: "bucket/name space directory",
-		},
+		// cli.StringFlag{
+		// 	Name:  "bucket",
+		// 	Usage: "bucket/name space directory",
+		// },
 		cli.StringFlag{
 			Name:  "annotation",
 			Usage: "custom annotation name",
@@ -264,7 +264,7 @@ FLAGS:
 
 EXAMPLES:
   1. Run migration tool to migrate from HCP to MinIO
-	 $ migratehcp --a "HCP czN0ZXxxxx8177ec668013f38859f" --host-header "HOST:s3testbucket.sandbox.hcp01.slc.paypal.com" --namespace-url "https://hcp-vip.slc.paypal.com/rest" --bucket "bucket" --annotation "myannotation" --dir "/tmp/data"
+	 $ migratehcp --a "HCP czN0ZXxxxx8177ec668013f38859f" --host-header "HOST:s3testbucket.sandbox.hcp01.slc.paypal.com" --namespace-url "https://hcp-vip.slc.paypal.com/rest"  --annotation "myannotation" --dir "/tmp/data"
 `
 	app.Action = migrateMain
 	app.Run(os.Args)

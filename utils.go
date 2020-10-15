@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode/utf8"
 )
@@ -80,3 +83,35 @@ func EncodePath(pathName string) string {
 
 // if object matches reserved string, no need to encode them
 var reservedObjectNames = regexp.MustCompile("^[a-zA-Z0-9-_.~/]+$")
+
+// Expects ascii encoded strings - from output of urlEncodePath
+func percentEncodeSlash(s string) string {
+	return strings.Replace(s, "/", "%2F", -1)
+}
+
+// QueryEncode - encodes query values in their URL encoded form. In
+// addition to the percent encoding performed by urlEncodePath() used
+// here, it also percent encodes '/' (forward slash)
+func QueryEncode(v url.Values) string {
+	if v == nil {
+		return ""
+	}
+	var buf bytes.Buffer
+	keys := make([]string, 0, len(v))
+	for k := range v {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		vs := v[k]
+		prefix := percentEncodeSlash(EncodePath(k)) + "="
+		for _, v := range vs {
+			if buf.Len() > 0 {
+				buf.WriteByte('&')
+			}
+			buf.WriteString(prefix)
+			buf.WriteString(percentEncodeSlash(EncodePath(v)))
+		}
+	}
+	return buf.String()
+}
