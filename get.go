@@ -35,7 +35,9 @@ func (hcp *hcpBackend) GetObject(bucket, object, annotation string) (r io.ReadCl
 		return r, oi, h, err
 	}
 	req.Header.Set("Authorization", authToken)
-	req.Header.Set("Host", hostHeader)
+	req.Host = hostHeader
+	req.URL.RawQuery = data.Encode()
+
 	// specify that annotation precede the object data
 	req.Header.Set("X-HCP-CustomMetadataFirst", "true")
 	resp, err := hcp.Client().Do(req)

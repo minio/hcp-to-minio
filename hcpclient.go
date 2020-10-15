@@ -43,27 +43,3 @@ func (hcp *hcpBackend) authenticationToken() string {
 	password := fmt.Sprintf("%x", h.Sum(nil))
 	return username + ":" + password
 }
-
-func (hcp *hcpBackend) createHeadRequest(urlStr string) (*http.Request, error) {
-	return hcp.createRequest(http.MethodHead, urlStr, nil)
-}
-
-func (hcp *hcpBackend) createGetRequest(urlStr string) (*http.Request, error) {
-	return hcp.createRequest(http.MethodGet, urlStr, nil)
-}
-
-func (hcp *hcpBackend) createRequest(method string, urlStr string, body io.Reader) (*http.Request, error) {
-
-	if req, err := http.NewRequest(method, hcp.URL+urlStr, body); err != nil {
-		return nil, err
-	} else {
-		req.Header.Set("Authorization", "HCP "+hcp.authenticationToken())
-		req.Header.Set("Content-Type", "application/xml")
-		return req, nil
-	}
-
-}
-
-func hcpErrorMessage(response *http.Response) string {
-	return response.Header.Get(xHcpErrorMessage)
-}

@@ -45,6 +45,7 @@ var (
 	annotation         string
 	hcp                *hcpBackend
 	minioClient        *miniogo.Client
+	dryRun             bool
 )
 
 const (
@@ -172,10 +173,13 @@ func migrateMain(cliCtx *cli.Context) {
 		hostHeader: hostHeader,
 		Insecure:   cliCtx.Bool("insecure"),
 	}
-	logMsg("Init minio client..")
-	if err := initMinioClient(cliCtx); err != nil {
-		logDMsg("Unable to initialize MinIO client, exiting...%w", err)
-		return
+	dryRun = os.Getenv(EnvMinIOEndpoint) == ""
+	if !dryRun {
+		logMsg("Init minio client..")
+		if err := initMinioClient(cliCtx); err != nil {
+			logDMsg("Unable to initialize MinIO client, exiting...%w", err)
+			return
+		}
 	}
 	ctx := context.Background()
 	logMsg("Downloading namespace listing to disk...")

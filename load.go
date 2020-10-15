@@ -128,6 +128,10 @@ func migrateObject(ctx context.Context, object string) error {
 	if err != nil {
 		return err
 	}
+	if dryRun {
+		logMsg("DryRun: Will migrate " + object + " =>" + oi.Key)
+		return nil
+	}
 	_, err = minioClient.PutObject(ctx, minioBucket, oi.Key, r, oi.Size, miniogo.PutObjectOptions{
 		ContentType:  oi.ContentType,
 		UserMetadata: oi.UserMetadata,
