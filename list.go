@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -156,10 +157,14 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 			// If we are at the end of the file, we are done
 			if err == io.EOF {
 				//	logDMsg("breaking Dir XML parsing because EOF", nil)
+				resp.Body.Close()
+				io.Copy(ioutil.Discard, resp.Body)
 				break
 			} else if err != nil {
 				log.Fatalf("Error decoding token: %s", err)
 			} else if t == nil {
+				resp.Body.Close()
+				io.Copy(ioutil.Discard, resp.Body)
 				break
 			}
 
