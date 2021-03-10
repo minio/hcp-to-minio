@@ -16,8 +16,6 @@ import (
 	"github.com/minio/minio/pkg/console"
 )
 
-const maxSize = 2 << 20 // 2 * MiB
-
 // Directory represents directory
 type Directory struct {
 	XMLNSXSI string `xml:"xmlns xsi,attr,omitempty"`
@@ -151,8 +149,7 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 			logDMsg(fmt.Sprintf("Couldn't list namespace directory contents with namespace URL %s", hcp.URL), err)
 			continue
 		}
-		reader := io.LimitReader(resp.Body, maxSize)
-		decoder := xml.NewDecoder(reader)
+		decoder := xml.NewDecoder(resp.Body)
 		for {
 			// Read tokens from the XML document in a stream.
 			t, err := decoder.Token()

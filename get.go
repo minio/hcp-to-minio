@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -21,7 +20,7 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	if err != nil {
 		return r, oi, h, err
 	}
-	u.Path = EncodePath(path.Join(u.Path, object))
+	u.Path = object
 	reqURL := u.String() // prints http://foo/bar.html
 
 	data := url.Values{}
@@ -36,7 +35,7 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	}
 	req.Header.Set("Authorization", authToken)
 	req.Host = hostHeader
-	req.URL.RawQuery = QueryEncode(data)
+	req.URL.RawQuery = data.Encode()
 	// specify that annotation precede the object data
 	req.Header["X-HCP-CustomMetadataFirst"] = []string{"true"}
 
