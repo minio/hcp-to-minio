@@ -83,7 +83,7 @@ func checkMain(ctx *cli.Context) {
 	annotation = ctx.GlobalString("annotation")
 
 	if authToken == "" || hostHeader == "" || namespaceURL == "" {
-		console.Fatalln(fmt.Errorf("--auth-token, --host-header and --namespace-url required, please check documentation '%s --help'", ctx.App.Name))
+		console.Fatalln(fmt.Errorf("--auth-token, --host-header and --namespace-url , --data-dir required, please check documentation '%s --help'", ctx.App.Name))
 		return
 	}
 	if dirPath == "" {
@@ -191,7 +191,7 @@ func migrateMain(cliCtx *cli.Context) {
 	}
 	ctx := context.Background()
 	logMsg("Downloading namespace listing to disk...")
-	if err := downloadObjectList(ctx, bucket); err != nil {
+	if err := hcp.downloadObjectList(ctx, bucket); err != nil {
 		logDMsg("exiting from listing", err)
 		return
 	}
@@ -271,8 +271,19 @@ FLAGS:
   {{end}}
 
 EXAMPLES:
-  1. Run migration tool to migrate from HCP to MinIO
-	 $ migratehcp --a "HCP czN0ZXxxxx8177ec668013f38859f" --host-header "HOST:s3testbucket.sandbox.hcp01.slc.paypal.com" --namespace-url "https://hcp-vip.slc.paypal.com/rest"  --annotation "myannotation" --dir "/tmp/data"
+  1. Dry run for migrating data in "s3testbucket" on namespace https://hcp-vip.example.com from HCP to MinIO
+	   $ migratehcp --a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com" \
+	   	           --namespace-url "https://hcp-vip.example.com" --dir "/tmp/data"
+
+  2. Run migration tool to migrate from HCP to MinIO with custom annotation "myannotation". If --annotation is unspecified,
+     MinIO objectname will be identical to object path in HCP
+	   $ export MINIO_ENDPOINT=https://minio:9000
+	   $ export MINIO_ACCESS_KEY=minio
+	   $ export MINIO_SECRET_KEY=minio123
+	   $ export MINIO_BUCKET=miniobucket         
+	   $ migratehcp --a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
+	                --namespace-url "https://hcp-vip.example.com" --dir "/tmp/data" \ 
+                  --annotation "myannotation" 
 `
 	app.Action = migrateMain
 	app.Run(os.Args)
