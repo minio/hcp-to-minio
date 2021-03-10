@@ -122,14 +122,18 @@ readloop:
 
 func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryCh chan Entry, wg *sync.WaitGroup) {
 	for j := range jobs {
-		logDMsg(`Directory: %#v`+j.Root, nil)
 		u, err := url.Parse(hcp.URL)
-		u.Path = EncodePath(path.Join(u.Path, j.Root))
-		urlStr := u.String()
-		req, err := http.NewRequest(http.MethodGet, urlStr, nil)
-
 		if err != nil {
-			logDMsg(fmt.Sprintf("Couldn't create a request with namespaceURL %s", namespaceURL), err)
+			logDMsg(fmt.Sprintf("Couldn't create a request with hcp.URL %s", hcp.URL), err)
+			continue
+		}
+		if j.Root != "" {
+			u.Path = j.Root
+		}
+		logDMsg(fmt.Sprintf(`Directory: %#v`, u.Path), nil)
+		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+		if err != nil {
+			logDMsg(fmt.Sprintf("Couldn't create a request with hcp.URL %s", hcp.URL), err)
 			continue
 		}
 		req.Header.Set("Authorization", authToken)
@@ -144,7 +148,7 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 			console.Println(trace(req, resp))
 		}
 		if err != nil {
-			logDMsg(fmt.Sprintf("Couldn't list namespace directory contents with namespace URL %s", namespaceURL), err)
+			logDMsg(fmt.Sprintf("Couldn't list namespace directory contents with namespace URL %s", hcp.URL), err)
 			continue
 		}
 		reader := io.LimitReader(resp.Body, maxSize)
