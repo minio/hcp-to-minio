@@ -66,7 +66,7 @@ type listWorkerJob struct {
 	Root string
 }
 
-func (hcp *hcpBackend) downloadObjectList(ctx context.Context, bucket string) error {
+func (hcp *hcpBackend) downloadObjectList(ctx context.Context) error {
 	f, err := os.OpenFile(path.Join(dirPath, objListFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err

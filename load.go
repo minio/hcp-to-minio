@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"runtime"
@@ -12,6 +12,8 @@ import (
 
 	miniogo "github.com/minio/minio-go/v7"
 )
+
+var dryRun bool
 
 type migrateState struct {
 	objectCh chan string
@@ -77,14 +79,15 @@ func (m *migrateState) addWorker(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				return
-			case oi, ok := <-m.objectCh:
+			case obj, ok := <-m.objectCh:
 				if !ok {
 					return
 				}
-				logDMsg(fmt.Sprintf("Migrating...%s", oi), nil)
-				if err := migrateObject(ctx, oi); err != nil {
+				logDMsg(fmt.Sprintf("Migrating...%s", obj), nil)
+				if err := migrateObject(ctx, obj); err != nil {
 					m.incFailCount()
-					logDMsg(fmt.Sprintf("error migrating object %s", oi), err)
+					m.failedCh <- obj
+					logDMsg(fmt.Sprintf("error migrating object %s", obj), err)
 					continue
 				}
 				m.incCount()
@@ -94,32 +97,42 @@ func (m *migrateState) addWorker(ctx context.Context) {
 }
 func (m *migrateState) finish(ctx context.Context) {
 	close(m.objectCh)
-	close(m.failedCh)
 	m.wg.Wait() // wait on workers to finish
+
 	if !dryRun {
 		logMsg(fmt.Sprintf("Migrated %d objects, %d failures", m.getCount(), m.getFailCount()))
 	}
 }
-func initMigration(ctx context.Context) {
-	if migrationState == nil {
+func (m *migrateState) init(ctx context.Context) {
+	if m == nil {
 		return
 	}
 	for i := 0; i < migrationConcurrent; i++ {
-		migrationState.addWorker(ctx)
+		m.addWorker(ctx)
 	}
 	go func() {
-		f, err := os.OpenFile(path.Join(dirPath, failMigFile), os.O_CREATE, 0600)
+		f, err := os.OpenFile(path.Join(dirPath, failMigFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		if err != nil {
-			log.Println("could not create %s due to %w", failMigFile, err)
+			logDMsg("could not create + failMigFile", err)
 			return
 		}
+		fwriter := bufio.NewWriter(f)
+		defer fwriter.Flush()
 		defer f.Close()
+
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case obj := <-migrationState.failedCh:
-				f.Write([]byte(obj))
+
+			case obj, ok := <-migrationState.failedCh:
+				if !ok {
+					return
+				}
+				if _, err := f.WriteString(obj + "\n"); err != nil {
+					logDMsg("Error writing to migration_fails.txt for "+obj, err)
+				}
+
 			}
 		}
 	}()
