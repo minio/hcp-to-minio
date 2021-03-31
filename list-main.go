@@ -95,8 +95,8 @@ FLAGS:
 
 EXAMPLES:
 1. List objects in HCP namespace https://hcp-vip.example.com and download list to /tmp/data
-	   $ hcp-to-minio list --a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com" \
-	   	           --namespace-url "https://hcp-vip.example.com/rest" --dir "/tmp/data"
+   $ hcp-to-minio list -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com" \
+  	       --namespace-url "https://hcp-vip.example.com/rest" --dir "/tmp/data"
 `,
 }
 

@@ -1,1 +1,3 @@
-./hcp-to-minio
+hcp-to-minio
+dist/
+*~

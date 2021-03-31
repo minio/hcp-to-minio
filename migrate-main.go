@@ -54,38 +54,40 @@ var migrateCmd = cli.Command{
 	{{.HelpName}} - {{.Usage}}
 
 USAGE:
-	{{.HelpName}} --auth-token --namespace-url --host-header --dir [--skip, --fake]
-	 
+	{{.HelpName}} --auth-token --namespace-url --host-header --data-dir [--skip, --fake]
+
 FLAGS:
    {{range .VisibleFlags}}{{.}}
    {{end}}
- 
+
 EXAMPLES:
-1. Migrate objects in "object_listing.txt" from HCP to MinIO with custom annotation "myannotation". If --annotation is unspecified,
-	MinIO objectname will be identical to object path in HCP
-	$ export MINIO_ENDPOINT=https://minio:9000
-	$ export MINIO_ACCESS_KEY=minio
-	$ export MINIO_SECRET_KEY=minio123
-	$ export MINIO_BUCKET=miniobucket         
-	$ hcp-to-minio migrate --a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
-				--namespace-url "https://hcp-vip.example.com/rest" --dir "/tmp/data" \ 
-				--annotation "myannotation" 
+1. Migrate objects in "object_listing.txt" from HCP to MinIO with custom annotation "myannotation".
+   If --annotation is unspecified, MinIO objectname will be identical to object path in HCP
+   $ export MINIO_ENDPOINT=https://minio:9000
+   $ export MINIO_ACCESS_KEY=minio
+   $ export MINIO_SECRET_KEY=minio123
+   $ export MINIO_BUCKET=miniobucket
+   $ hcp-to-minio migrate -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
+			--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data" \
+			--annotation "myannotation"
+
 2. Migrate objects in "object_listing.txt" from HCP to MinIO after skipping 100000 entries in this file
-	$ export MINIO_ENDPOINT=https://minio:9000
-	$ export MINIO_ACCESS_KEY=minio
-	$ export MINIO_SECRET_KEY=minio123
-	$ export MINIO_BUCKET=miniobucket         
-	$ hcp-to-minio migrate --a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
-				--namespace-url "https://hcp-vip.example.com/rest" --dir "/tmp/data" \ 
-				--annotation "myannotation" --skip 10000
-2. Perform a dry run for migrating objects in "object_listing.txt" from HCP to MinIO
-	$ export MINIO_ENDPOINT=https://minio:9000
-	$ export MINIO_ACCESS_KEY=minio
-	$ export MINIO_SECRET_KEY=minio123
-	$ export MINIO_BUCKET=miniobucket         
-	$ hcp-to-minio migrate --a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
-				--namespace-url "https://hcp-vip.example.com/rest" --dir "/tmp/data" \ 
-				--annotation "myannotation" --fake --log	
+   $ export MINIO_ENDPOINT=https://minio:9000
+   $ export MINIO_ACCESS_KEY=minio
+   $ export MINIO_SECRET_KEY=minio123
+   $ export MINIO_BUCKET=miniobucket
+   $ hcp-to-minio migrate -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
+ 			--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data" \
+			--annotation "myannotation" --skip 10000
+
+3. Perform a dry run for migrating objects in "object_listing.txt" from HCP to MinIO
+   $ export MINIO_ENDPOINT=https://minio:9000
+   $ export MINIO_ACCESS_KEY=minio
+   $ export MINIO_SECRET_KEY=minio123
+   $ export MINIO_BUCKET=miniobucket
+   $ hcp-to-minio migrate -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
+		--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data" \
+		--annotation "myannotation" --fake --log
 `,
 }
 var minioClient *miniogo.Client

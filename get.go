@@ -58,12 +58,15 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 		doc     Document
 	)
 	szStr := resp.Header.Get("Content-Length")
+	if szStr == "" {
+		szStr = resp.Header.Get("X-Hcp-Contentlength")
+	}
 	totSz, err = strconv.Atoi(szStr)
 	if err != nil {
 		return r, oi, h, fmt.Errorf("invalid content-length header %w", err)
 	}
 	if annotation != "" {
-		objSizeStr := resp.Header.Get("X-HCP-Size")
+		objSizeStr := resp.Header.Get("X-Hcp-Size")
 		objSz, err = strconv.Atoi(objSizeStr)
 		if err != nil {
 			return r, oi, h, fmt.Errorf("invalid X-HCP-Size header %w", err)
@@ -90,13 +93,18 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	if err != nil {
 		return r, oi, h, fmt.Errorf("invalid date format for Last-Modified header %w", err)
 	}
+	contentType := resp.Header.Get("X-Hcp-Custommetadatacontenttype")
+	if contentType == "" {
+		contentType = resp.Header.Get("Content-Type")
+	}
 	oi = miniogo.ObjectInfo{
 		Key:          minioObjName,
 		ETag:         resp.Header.Get("ETag"),
 		UserMetadata: metadata,
 		Size:         int64(objSz),
 		LastModified: date,
-		ContentType:  resp.Header.Get("Content-Type"),
+		ContentType:  contentType,
+		Metadata:     resp.Header,
 	}
 	return ioutil.NopCloser(reader), oi, h, nil
 }
