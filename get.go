@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,6 +13,14 @@ import (
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio/pkg/console"
 )
+
+// closeWrapper converts a function to an io.Closer
+type closeWrapper func() error
+
+// Close calls the wrapped function.
+func (c closeWrapper) Close() error {
+	return c()
+}
 
 func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi miniogo.ObjectInfo, h http.Header, err error) {
 	u, err := url.Parse(namespaceURL)
@@ -106,5 +113,11 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 		ContentType:  contentType,
 		Metadata:     resp.Header,
 	}
-	return ioutil.NopCloser(reader), oi, h, nil
+
+	return struct {
+		io.Reader
+		io.Closer
+	}{Reader: reader, Closer: closeWrapper(func() error {
+		return resp.Body.Close()
+	})}, oi, h, nil
 }

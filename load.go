@@ -32,14 +32,12 @@ func (m *migrateState) queueUploadTask(obj string) {
 
 var (
 	migrationState      *migrateState
-	migrationConcurrent = runtime.GOMAXPROCS(0) / 2
+	migrationConcurrent = 100
 )
 
 func newMigrationState(ctx context.Context) *migrateState {
-
-	// fix minimum concurrent migration to 1 for single CPU setup
-	if migrationConcurrent == 0 {
-		migrationConcurrent = 1
+	if runtime.GOMAXPROCS(0) > migrationConcurrent {
+		migrationConcurrent = runtime.GOMAXPROCS(0)
 	}
 	ms := &migrateState{
 		objectCh: make(chan string, 10000),
@@ -143,6 +141,7 @@ func migrateObject(ctx context.Context, object string) error {
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 	if dryRun {
 		logMsg(migrateMsg(object, oi.Key))
 		return nil
