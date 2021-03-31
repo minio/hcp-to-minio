@@ -24,10 +24,7 @@ type migrateState struct {
 }
 
 func (m *migrateState) queueUploadTask(obj string) {
-	select {
-	case m.objectCh <- obj:
-	default:
-	}
+	m.objectCh <- obj
 }
 
 var (
