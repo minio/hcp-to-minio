@@ -72,12 +72,11 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	if err != nil {
 		return r, oi, h, fmt.Errorf("invalid content-length header %w", err)
 	}
+	objSz, err = strconv.Atoi(resp.Header.Get("X-Hcp-Size"))
+	if err != nil {
+		return r, oi, h, fmt.Errorf("invalid X-HCP-Size header %w", err)
+	}
 	if annotation != "" {
-		objSizeStr := resp.Header.Get("X-Hcp-Size")
-		objSz, err = strconv.Atoi(objSizeStr)
-		if err != nil {
-			return r, oi, h, fmt.Errorf("invalid X-HCP-Size header %w", err)
-		}
 		annotSz = totSz - objSz
 	}
 	reader := io.LimitReader(resp.Body, 1*1024*1024)
