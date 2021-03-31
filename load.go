@@ -80,9 +80,9 @@ func (m *migrateState) addWorker(ctx context.Context) {
 				}
 				logDMsg(fmt.Sprintf("Migrating...%s", obj), nil)
 				if err := migrateObject(ctx, obj); err != nil {
-					m.failedCh <- obj
 					m.incFailCount()
-					logDMsg(fmt.Sprintf("error migrating object %s", obj), err)
+					logMsg(fmt.Sprintf("error migrating object %s: %s", obj, err))
+					m.failedCh <- obj
 					continue
 				}
 				m.incCount()
@@ -92,8 +92,8 @@ func (m *migrateState) addWorker(ctx context.Context) {
 }
 func (m *migrateState) finish(ctx context.Context) {
 	close(m.objectCh)
-	close(m.failedCh)
 	m.wg.Wait() // wait on workers to finish
+	close(m.failedCh)
 
 	if !dryRun {
 		logMsg(fmt.Sprintf("Migrated %d objects, %d failures", m.getCount(), m.getFailCount()))
