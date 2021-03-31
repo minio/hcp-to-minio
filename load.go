@@ -40,8 +40,8 @@ func newMigrationState(ctx context.Context) *migrateState {
 		migrationConcurrent = runtime.GOMAXPROCS(0)
 	}
 	ms := &migrateState{
-		objectCh: make(chan string, 10000),
-		failedCh: make(chan string, 1000),
+		objectCh: make(chan string, migrationConcurrent),
+		failedCh: make(chan string, migrationConcurrent),
 	}
 
 	return ms
@@ -83,8 +83,8 @@ func (m *migrateState) addWorker(ctx context.Context) {
 				}
 				logDMsg(fmt.Sprintf("Migrating...%s", obj), nil)
 				if err := migrateObject(ctx, obj); err != nil {
-					m.incFailCount()
 					m.failedCh <- obj
+					m.incFailCount()
 					logDMsg(fmt.Sprintf("error migrating object %s", obj), err)
 					continue
 				}
@@ -95,6 +95,7 @@ func (m *migrateState) addWorker(ctx context.Context) {
 }
 func (m *migrateState) finish(ctx context.Context) {
 	close(m.objectCh)
+	close(m.failedCh)
 	m.wg.Wait() // wait on workers to finish
 
 	if !dryRun {
@@ -122,13 +123,13 @@ func (m *migrateState) init(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				return
-
-			case obj, ok := <-migrationState.failedCh:
+			case obj, ok := <-m.failedCh:
 				if !ok {
 					return
 				}
 				if _, err := f.WriteString(obj + "\n"); err != nil {
-					logDMsg("Error writing to migration_fails.txt for "+obj, err)
+					logMsg(fmt.Sprintf("Error writing to migration_fails.txt for "+obj, err))
+					os.Exit(1)
 				}
 
 			}
