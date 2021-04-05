@@ -103,9 +103,12 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	if contentType == "" {
 		contentType = resp.Header.Get("Content-Type")
 	}
+	etag := strings.TrimPrefix(resp.Header.Get("ETag"), "\"")
+	etag = strings.TrimSuffix(etag, "\"")
+
 	oi = miniogo.ObjectInfo{
 		Key:          minioObjName,
-		ETag:         resp.Header.Get("ETag"),
+		ETag:         etag,
 		UserMetadata: metadata,
 		Size:         int64(objSz),
 		LastModified: date,

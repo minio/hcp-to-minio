@@ -18,6 +18,7 @@ var dryRun bool
 type migrateState struct {
 	objectCh chan string
 	failedCh chan string
+	logCh    chan string
 	count    uint64
 	failCnt  uint64
 	wg       sync.WaitGroup
@@ -39,6 +40,7 @@ func newMigrationState(ctx context.Context) *migrateState {
 	ms := &migrateState{
 		objectCh: make(chan string, migrationConcurrent),
 		failedCh: make(chan string, migrationConcurrent),
+		logCh:    make(chan string, migrationConcurrent),
 	}
 
 	return ms
@@ -86,6 +88,7 @@ func (m *migrateState) addWorker(ctx context.Context) {
 					continue
 				}
 				m.incCount()
+				m.logCh <- obj
 			}
 		}
 	}()
@@ -94,6 +97,7 @@ func (m *migrateState) finish(ctx context.Context) {
 	close(m.objectCh)
 	m.wg.Wait() // wait on workers to finish
 	close(m.failedCh)
+	close(m.logCh)
 
 	if !dryRun {
 		logMsg(fmt.Sprintf("Migrated %d objects, %d failures", m.getCount(), m.getFailCount()))
@@ -109,7 +113,7 @@ func (m *migrateState) init(ctx context.Context) {
 	go func() {
 		f, err := os.OpenFile(path.Join(dirPath, failMigFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		if err != nil {
-			logDMsg("could not create + failMigFile", err)
+			logDMsg("could not create + migration_fails.txt", err)
 			return
 		}
 		fwriter := bufio.NewWriter(f)
@@ -132,6 +136,33 @@ func (m *migrateState) init(ctx context.Context) {
 			}
 		}
 	}()
+	go func() {
+		f, err := os.OpenFile(path.Join(dirPath, logMigFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		if err != nil {
+			logDMsg("could not create + migration_log.txt", err)
+			return
+		}
+		fwriter := bufio.NewWriter(f)
+		defer fwriter.Flush()
+		defer f.Close()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case obj, ok := <-m.logCh:
+				if !ok {
+					return
+				}
+				if _, err := f.WriteString(obj + "\n"); err != nil {
+					logMsg(fmt.Sprintf("Error writing to migration_log.txt for "+obj, err))
+					os.Exit(1)
+				}
+
+			}
+		}
+	}()
+
 }
 
 func migrateObject(ctx context.Context, object string) error {

@@ -76,6 +76,7 @@ var (
 const (
 	objListFile = "object_listing.txt"
 	failMigFile = "migration_fails.txt"
+	logMigFile  = "migration_success.txt"
 )
 
 var listCmd = cli.Command{
