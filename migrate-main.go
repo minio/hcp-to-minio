@@ -28,6 +28,7 @@ import (
 	"path"
 	"time"
 
+	humanize "github.com/dustin/go-humanize"
 	"github.com/minio/cli"
 	miniogo "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -78,7 +79,7 @@ EXAMPLES:
    $ export MINIO_BUCKET=miniobucket
    $ hcp-to-minio migrate -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
  			--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data" \
-			--annotation "myannotation" --skip 10000
+			--annotation "myannotation" --skip 100000
 
 3. Perform a dry run for migrating objects in "object_listing.txt" from HCP to MinIO
    $ export MINIO_ENDPOINT=https://minio:9000
@@ -182,6 +183,7 @@ func migrateAction(cliCtx *cli.Context) error {
 	migrationState.init(ctx)
 	skip := cliCtx.Int("skip")
 	dryRun = cliCtx.Bool("fake")
+	start := time.Now()
 	file, err := os.Open(path.Join(dirPath, objListFile))
 	if err != nil {
 		logDMsg(fmt.Sprintf("could not open file :%s ", objListFile), err)
@@ -202,7 +204,13 @@ func migrateAction(cliCtx *cli.Context) error {
 		return err
 	}
 	migrationState.finish(ctx)
-	logMsg("successfully completed migration.")
-
+	if dryRun {
+		logMsg("Migration dry run complete")
+	} else {
+		end := time.Now()
+		latency := end.Sub(start).Seconds()
+		count := migrationState.getCount() - migrationState.getFailCount()
+		logMsg(fmt.Sprintf("Migrated %s / %s objects with latency %d secs", humanize.Comma(int64(count)), humanize.Comma(int64(migrationState.getCount())), int64(latency)))
+	}
 	return nil
 }
