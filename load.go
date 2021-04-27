@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	miniogo "github.com/minio/minio-go/v7"
 )
@@ -111,7 +112,7 @@ func (m *migrateState) init(ctx context.Context) {
 		m.addWorker(ctx)
 	}
 	go func() {
-		f, err := os.OpenFile(path.Join(dirPath, failMigFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		f, err := os.OpenFile(path.Join(dirPath, failMigFile+time.Now().Format(".01-02-2006-15-04-05")), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		if err != nil {
 			logDMsg("could not create + migration_fails.txt", err)
 			return
@@ -137,7 +138,7 @@ func (m *migrateState) init(ctx context.Context) {
 		}
 	}()
 	go func() {
-		f, err := os.OpenFile(path.Join(dirPath, logMigFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+		f, err := os.OpenFile(path.Join(dirPath, logMigFile+time.Now().Format(".01-02-2006-15-04-05")), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		if err != nil {
 			logDMsg("could not create + migration_log.txt", err)
 			return
