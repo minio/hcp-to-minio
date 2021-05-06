@@ -17,9 +17,11 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net/url"
+	"os"
 
 	"github.com/fatih/color"
 	"github.com/minio/cli"
@@ -60,12 +62,17 @@ var allFlags = []cli.Flag{
 		Name:  "debug",
 		Usage: "enable debugging",
 	},
+	cli.StringFlag{
+		Name:  "prefixes-file",
+		Usage: "file with list of child prefixes under namespace url",
+	},
 }
 var (
 	authToken          string
 	hostHeader         string
 	namespaceURL       string
 	dirPath            string
+	inputPrefixFile    string
 	bucket             string // HCP bucket name
 	minioBucket        string // in case user needs a different bucket name on MinIO
 	debugFlag, logFlag bool
@@ -97,7 +104,12 @@ FLAGS:
 EXAMPLES:
 1. List objects in HCP namespace https://hcp-vip.example.com and download list to /tmp/data
    $ hcp-to-minio list -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com" \
-  	       --namespace-url "https://hcp-vip.example.com/rest" --dir "/tmp/data"
+		--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data"
+
+2. List objects in HCP namespace https://hcp-vip.example.com for top level prefixes in prefixFile and download list to /tmp/data
+   $ hcp-to-minio list -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com" \
+		--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data" --prefixes-file /tmp/data/input-prefix-list.txt
+		  
 `,
 }
 
@@ -143,13 +155,44 @@ func checkArgsAndInit(ctx *cli.Context) {
 	}
 }
 
+func readLines(path string) ([]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
+}
+
 func listAction(cliCtx *cli.Context) error {
 	checkArgsAndInit(cliCtx)
 	ctx := context.Background()
-	logMsg("Downloading namespace listing to disk...")
-	if err := hcp.downloadObjectList(ctx); err != nil {
-		logDMsg("exiting from listing", err)
-		return err
+	inputPrefixFile = cliCtx.String("prefixes-file")
+	var (
+		prefixes []string
+		err      error
+	)
+	if inputPrefixFile == "" {
+		prefixes = append(prefixes, "")
+	} else {
+		prefixes, err = readLines(inputPrefixFile)
+		if err != nil {
+			console.Fatalln(fmt.Errorf("error reading %s: %v ", inputPrefixFile, err))
+		}
+	}
+	for _, prefix := range prefixes {
+		hcp.URL = fmt.Sprintf("%s/%s", namespaceURL, prefix)
+		logMsg(fmt.Sprintf("Downloading namespace listing to disk for :%s", prefix))
+		if err := hcp.downloadObjectList(ctx, prefix); err != nil {
+			logDMsg("exiting from listing", err)
+			return err
+		}
 	}
 	return nil
 }
