@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/minio/minio/pkg/console"
 )
@@ -66,8 +67,14 @@ type listWorkerJob struct {
 	Root string
 }
 
-func (hcp *hcpBackend) downloadObjectList(ctx context.Context) error {
-	f, err := os.OpenFile(path.Join(dirPath, objListFile), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+func getFileName(fname, prefix string) string {
+	if prefix == "" {
+		return fmt.Sprintf("%s%s", fname, time.Now().Format(".01-02-2006-15-04-05"))
+	}
+	return fmt.Sprintf("%s_%s%s", fname, prefix, time.Now().Format(".01-02-2006-15-04-05"))
+}
+func (hcp *hcpBackend) downloadObjectList(ctx context.Context, prefix string) error {
+	f, err := os.OpenFile(path.Join(dirPath, getFileName(objListFile, prefix)), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
@@ -109,7 +116,7 @@ readloop:
 				return err
 			}
 		case <-readDone:
-			// log.Printf(`got stop`)
+			log.Printf(`got stop`)
 			close(jobs)
 			break readloop
 		}
@@ -137,7 +144,6 @@ func (hcp *hcpBackend) List(ctx context.Context, jobs chan listWorkerJob, entryC
 		}
 		req.Header.Set("Authorization", authToken)
 		req.Host = hostHeader
-
 		resp, err := hcp.Client().Do(req)
 		// logDMsg("REQUEST:>"+req.URL.String(), nil)
 		// if resp != nil {
