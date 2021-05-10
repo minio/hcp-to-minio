@@ -38,10 +38,11 @@ $ export MINIO_ENDPOINT=https://minio:9000
 $ export MINIO_BUCKET=newbucket  # optional, if unspecified HCP bucket name is used
 
 $ mkdir /tmp/data # temporary dir where output of listing is stored.
-$ hcp-to-minio  --namespace-url https://finance.europe.hcp.example.com/rest \
+$ hcp-to-minio migrate --namespace-url https://finance.europe.hcp.example.com \
    --auth-token "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" \
    --host-header "s3testbucket.sandbox.hcp.example.com" \
    --data-dir /mnt/data \
    --bucket s3testbucket \
-   --annotation myannotation
+   --annotation myannotation \
+   --input-file /tmp/data/to-migrate.txt
 ```
