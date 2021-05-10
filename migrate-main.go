@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
@@ -45,6 +44,10 @@ var migrateFlags = []cli.Flag{
 		Name:  "fake",
 		Usage: "perform a fake migration",
 	},
+	cli.StringFlag{
+		Name:  "input-file",
+		Usage: "file with list of entries to migrate from HCP",
+	},
 }
 var migrateCmd = cli.Command{
 	Name:   "migrate",
@@ -62,7 +65,7 @@ FLAGS:
    {{end}}
 
 EXAMPLES:
-1. Migrate objects in "object_listing.txt" from HCP to MinIO with custom annotation "myannotation".
+1. Migrate objects in input file from HCP to MinIO with custom annotation "myannotation".
    If --annotation is unspecified, MinIO objectname will be identical to object path in HCP
    $ export MINIO_ENDPOINT=https://minio:9000
    $ export MINIO_ACCESS_KEY=minio
@@ -70,25 +73,25 @@ EXAMPLES:
    $ export MINIO_BUCKET=miniobucket
    $ hcp-to-minio migrate -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
 			--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data" \
-			--annotation "myannotation"
+			--annotation "myannotation" --input-file "/tmp/data/to_migrate.txt"
 
-2. Migrate objects in "object_listing.txt" from HCP to MinIO after skipping 100000 entries in this file
+2. Migrate objects in input file from HCP to MinIO after skipping 100000 entries in this file
    $ export MINIO_ENDPOINT=https://minio:9000
    $ export MINIO_ACCESS_KEY=minio
    $ export MINIO_SECRET_KEY=minio123
    $ export MINIO_BUCKET=miniobucket
    $ hcp-to-minio migrate -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
  			--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data" \
-			--annotation "myannotation" --skip 100000
+			--annotation "myannotation" --skip 100000 --input-file "/tmp/data/to_migrate.txt"
 
-3. Perform a dry run for migrating objects in "object_listing.txt" from HCP to MinIO
+3. Perform a dry run for migrating objects in input file from HCP to MinIO
    $ export MINIO_ENDPOINT=https://minio:9000
    $ export MINIO_ACCESS_KEY=minio
    $ export MINIO_SECRET_KEY=minio123
    $ export MINIO_BUCKET=miniobucket
    $ hcp-to-minio migrate -a "HCP bXl1c2Vy:3f3c6784e97531774380db177774ac8d" --host-header "HOST:s3testbucket.tenant.hcp.example.com \
 		--namespace-url "https://hcp-vip.example.com/rest" --data-dir "/tmp/data" \
-		--annotation "myannotation" --fake --log
+		--annotation "myannotation" --fake --log --input-file "/tmp/data/to_migrate.txt"
 `,
 }
 var minioClient *miniogo.Client
@@ -184,10 +187,10 @@ func migrateAction(cliCtx *cli.Context) error {
 	skip := cliCtx.Int("skip")
 	dryRun = cliCtx.Bool("fake")
 	start := time.Now()
-	file, err := os.Open(path.Join(dirPath, objListFile))
+	inputFile := cliCtx.String("input-file")
+	file, err := os.Open(inputFile)
 	if err != nil {
-		logDMsg(fmt.Sprintf("could not open file :%s ", objListFile), err)
-		return err
+		console.Fatalln("--input-file needs to be specified", err)
 	}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

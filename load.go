@@ -17,11 +17,16 @@ var dryRun bool
 
 type migrateState struct {
 	objectCh chan string
-	failedCh chan string
+	failedCh chan migrationErr
 	logCh    chan string
 	count    uint64
 	failCnt  uint64
 	wg       sync.WaitGroup
+}
+
+type migrationErr struct {
+	object string
+	err    error
 }
 
 func (m *migrateState) queueUploadTask(obj string) {
@@ -39,7 +44,7 @@ func newMigrationState(ctx context.Context) *migrateState {
 	}
 	ms := &migrateState{
 		objectCh: make(chan string, migrationConcurrent),
-		failedCh: make(chan string, migrationConcurrent),
+		failedCh: make(chan migrationErr, migrationConcurrent),
 		logCh:    make(chan string, migrationConcurrent),
 	}
 
@@ -84,7 +89,7 @@ func (m *migrateState) addWorker(ctx context.Context) {
 				if err := migrateObject(ctx, obj); err != nil {
 					m.incFailCount()
 					logMsg(fmt.Sprintf("error migrating object %s: %s", obj, err))
-					m.failedCh <- obj
+					m.failedCh <- migrationErr{object: obj, err: err}
 					continue
 				}
 				m.incCount()
@@ -128,8 +133,8 @@ func (m *migrateState) init(ctx context.Context) {
 				if !ok {
 					return
 				}
-				if _, err := f.WriteString(obj + "\n"); err != nil {
-					logMsg(fmt.Sprintf("Error writing to migration_fails.txt for "+obj, err))
+				if _, err := f.WriteString(obj.object + " : " + obj.err.Error() + "\n"); err != nil {
+					logMsg(fmt.Sprintf("Error writing to migration_fails.txt for "+obj.object, err))
 					os.Exit(1)
 				}
 
