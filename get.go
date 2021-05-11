@@ -47,8 +47,8 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 		return r, oi, h, err
 	}
 	req.Header.Set("Authorization", authToken)
+	req.Header.Set("Expect", "100-continue")
 	req.Host = hostHeader
-	req.Close = true
 	req.URL.RawQuery = data.Encode()
 	// specify that annotation precede the object data
 	req.Header["X-HCP-CustomMetadataFirst"] = []string{"true"}
@@ -78,6 +78,7 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	}
 	totSz, err = strconv.Atoi(szStr)
 	if err != nil {
+		closeResponse(resp)
 		return r, oi, h, fmt.Errorf("invalid content-length header %w", err)
 	}
 	objSz, err = strconv.Atoi(resp.Header.Get("X-Hcp-Size"))
@@ -132,6 +133,7 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 		io.Reader
 		io.Closer
 	}{Reader: reader, Closer: closeWrapper(func() error {
+		io.Copy(ioutil.Discard, resp.Body) // drain for connection re-use upon close.
 		return resp.Body.Close()
 	})}, oi, h, nil
 }
