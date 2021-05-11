@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -21,7 +22,12 @@ type closeWrapper func() error
 func (c closeWrapper) Close() error {
 	return c()
 }
-
+func closeResponse(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		io.Copy(ioutil.Discard, resp.Body)
+		resp.Body.Close()
+	}
+}
 func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi miniogo.ObjectInfo, h http.Header, err error) {
 	u, err := url.Parse(namespaceURL)
 	if err != nil {
@@ -42,6 +48,7 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	}
 	req.Header.Set("Authorization", authToken)
 	req.Host = hostHeader
+	req.Close = true
 	req.URL.RawQuery = data.Encode()
 	// specify that annotation precede the object data
 	req.Header["X-HCP-CustomMetadataFirst"] = []string{"true"}
@@ -55,7 +62,8 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 		return r, oi, h, err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return r, oi, h, fmt.Errorf("Bad request")
+		closeResponse(resp)
+		return r, oi, h, fmt.Errorf("bad request Status:%d", resp.StatusCode)
 	}
 
 	var (
@@ -74,6 +82,7 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	}
 	objSz, err = strconv.Atoi(resp.Header.Get("X-Hcp-Size"))
 	if err != nil {
+		closeResponse(resp)
 		return r, oi, h, fmt.Errorf("invalid X-HCP-Size header %w", err)
 	}
 	if annotation != "" {
@@ -86,10 +95,12 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 		annotationBuf := make([]byte, annotSz)
 		_, err := reader.Read(annotationBuf)
 		if err != nil {
+			closeResponse(resp)
 			return r, oi, h, fmt.Errorf("could not read annotation into buffer %w", err)
 		}
 		if err = xml.Unmarshal(annotationBuf, &doc); err != nil {
-			return r, oi, h, fmt.Errorf("Annotation could not be unmarshalled %w", err)
+			closeResponse(resp)
+			return r, oi, h, fmt.Errorf("annotation could not be unmarshalled %w", err)
 		}
 		minioObjName = doc.getMinIOObjectName()
 		metadata = doc.getObjectMetadata()
@@ -97,6 +108,7 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	// Parse Last-Modified has http time format.
 	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
 	if err != nil {
+		closeResponse(resp)
 		return r, oi, h, fmt.Errorf("invalid date format for Last-Modified header %w", err)
 	}
 	contentType := resp.Header.Get("X-Hcp-Custommetadatacontenttype")

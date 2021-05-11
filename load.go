@@ -180,6 +180,10 @@ func migrateObject(ctx context.Context, object string) error {
 		logMsg(migrateMsg(object, oi.Key))
 		return nil
 	}
+	if _, err = minioClient.StatObject(ctx, minioBucket, oi.Key, miniogo.StatObjectOptions{}); err == nil {
+		logDMsg("object already exists on MinIO "+oi.Key+" not migrated", err)
+		return nil
+	}
 	_, err = minioClient.PutObject(ctx, minioBucket, oi.Key, r, oi.Size, miniogo.PutObjectOptions{
 		ContentType:  oi.ContentType,
 		UserMetadata: oi.UserMetadata,
