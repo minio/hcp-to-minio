@@ -46,10 +46,6 @@ var allFlags = []cli.Flag{
 		Name:  "data-dir, d",
 		Usage: "path to work directory for tool",
 	},
-	cli.StringFlag{
-		Name:  "annotation",
-		Usage: "custom annotation name",
-	},
 	cli.BoolFlag{
 		Name:  "insecure, i",
 		Usage: "disable TLS certificate verification",
@@ -76,7 +72,6 @@ var (
 	bucket             string // HCP bucket name
 	minioBucket        string // in case user needs a different bucket name on MinIO
 	debugFlag, logFlag bool
-	annotation         string
 	hcp                *hcpBackend
 )
 
@@ -127,7 +122,6 @@ func checkArgsAndInit(ctx *cli.Context) {
 
 	dirPath = ctx.String("data-dir")
 	//	bucket = ctx.String("bucket")
-	annotation = ctx.String("annotation")
 
 	if authToken == "" || hostHeader == "" || namespaceURL == "" {
 		cli.ShowCommandHelp(ctx, ctx.Command.Name) // last argument is exit code

@@ -171,7 +171,7 @@ func (m *migrateState) init(ctx context.Context) {
 }
 
 func migrateObject(ctx context.Context, object string) error {
-	r, oi, _, err := hcp.GetObject(object, annotation)
+	r, oi, _, err := hcp.GetObject(object)
 	if err != nil {
 		return err
 	}
