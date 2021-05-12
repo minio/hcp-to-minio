@@ -184,15 +184,20 @@ func migrateObject(ctx context.Context, object string) error {
 		logDMsg("object already exists on MinIO "+oi.Key+" not migrated", err)
 		return nil
 	}
-	_, err = minioClient.PutObject(ctx, minioBucket, oi.Key, r, oi.Size, miniogo.PutObjectOptions{
+	uoi, err := minioClient.PutObject(ctx, minioBucket, oi.Key, r, oi.Size, miniogo.PutObjectOptions{
 		Internal: miniogo.AdvancedPutOptions{
 			SourceMTime: oi.LastModified,
 		},
 	})
 	if err != nil {
-		logDMsg("upload to minio client failed for "+oi.Key, err)
+		logDMsg("upload to minio failed for "+oi.Key, err)
 		return err
 	}
-	logDMsg("Uploaded "+oi.Key+" successfully", nil)
+	if uoi.Size != oi.Size {
+		err = fmt.Errorf("expected size %d, uploaded %d", oi.Size, uoi.Size)
+		logDMsg("upload to minio failed for "+oi.Key, err)
+		return err
+	}
+	logDMsg("Uploaded "+uoi.Key+" successfully", nil)
 	return nil
 }
