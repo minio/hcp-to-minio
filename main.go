@@ -22,6 +22,8 @@ import (
 	"github.com/minio/cli"
 )
 
+var version = "(dev)"
+
 var subcommands = []cli.Command{
 	listCmd,
 	migrateCmd,
@@ -45,7 +47,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = os.Args[0]
 	app.Author = "MinIO, Inc."
-	app.Version = "0.1.1"
+	app.Version = version
 	app.Description = `Migration tool from HCP ObjectStore to MinIO`
 	app.Flags = []cli.Flag{}
 	app.Action = mainAction

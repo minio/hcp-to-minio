@@ -5,12 +5,6 @@ before:
     - go mod tidy
 builds:
   -
-    asmflags:
-      - all=-trimpath={{.Env.GOPATH}}
-
-    gcflags:
-      - all=-trimpath={{.Env.GOPATH}}
-
     goos:
       - darwin
       - linux
@@ -21,6 +15,13 @@ builds:
       - arm64
       - ppc64le
       - s390x
+
+    flags:
+      - -trimpath
+      - --tags=kqueue
+
+    ldflags:
+      - -s -w -X main.version={{.Tag}}
 
     env:
       - CGO_ENABLED=0
