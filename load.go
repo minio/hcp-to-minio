@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -14,6 +16,7 @@ import (
 )
 
 var dryRun bool
+var download bool
 
 type migrateState struct {
 	objectCh chan string
@@ -178,6 +181,18 @@ func migrateObject(ctx context.Context, object string) error {
 	defer r.Close()
 	if dryRun {
 		logMsg(migrateMsg(object, oi.Key))
+		return nil
+	}
+	if download {
+		localFile, err := os.Create(path.Join(dirPath, strings.ReplaceAll(oi.Key, "/", "-")))
+		if err != nil {
+			logDMsg("could not create file "+oi.Key, err)
+		}
+		defer localFile.Close()
+
+		if _, err := io.CopyN(localFile, r, oi.Size); err != nil {
+			logDMsg("Download of "+oi.Key+" to disk failed", err)
+		}
 		return nil
 	}
 	if _, err = minioClient.StatObject(ctx, minioBucket, oi.Key, miniogo.StatObjectOptions{}); err == nil {

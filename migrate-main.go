@@ -44,6 +44,10 @@ var migrateFlags = []cli.Flag{
 		Name:  "fake",
 		Usage: "perform a fake migration",
 	},
+	cli.BoolFlag{
+		Name:  "download",
+		Usage: "download hcp data to disk",
+	},
 	cli.StringFlag{
 		Name:  "input-file",
 		Usage: "file with list of entries to migrate from HCP",
@@ -184,6 +188,8 @@ func migrateAction(cliCtx *cli.Context) error {
 	migrationState.init(ctx)
 	skip := cliCtx.Int("skip")
 	dryRun = cliCtx.Bool("fake")
+	download = cliCtx.Bool("download")
+
 	start := time.Now()
 	inputFile := cliCtx.String("input-file")
 	file, err := os.Open(inputFile)

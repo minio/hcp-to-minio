@@ -45,7 +45,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = os.Args[0]
 	app.Author = "MinIO, Inc."
-	app.Version = "0.1.1"
+	app.Version = "0.1.2"
 	app.Description = `Migration tool from HCP ObjectStore to MinIO`
 	app.Flags = []cli.Flag{}
 	app.Action = mainAction
