@@ -14,7 +14,6 @@ FLAGS:
   --namespace-url value, -n value  namespace URL path, e.g https://namespace-name.tenant-name.hcp-domain-name/rest
   --host-header value              host header for HCP
   --data-dir value, -d value       path to work directory for tool
-  --annotation value               custom annotation name
   --insecure, -i                   disable TLS certificate verification
   --log, -l                        enable logging
   --debug                          enable debugging
@@ -43,6 +42,5 @@ $ hcp-to-minio migrate --namespace-url https://finance.europe.hcp.example.com \
    --host-header "s3testbucket.sandbox.hcp.example.com" \
    --data-dir /mnt/data \
    --bucket s3testbucket \
-   --annotation myannotation \
    --input-file /tmp/data/to-migrate.txt
 ```

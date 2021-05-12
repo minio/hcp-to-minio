@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/xml"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,7 +27,7 @@ func closeResponse(resp *http.Response) {
 		resp.Body.Close()
 	}
 }
-func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi miniogo.ObjectInfo, h http.Header, err error) {
+func (hcp *hcpBackend) GetObject(object string) (r io.ReadCloser, oi miniogo.ObjectInfo, h http.Header, err error) {
 	u, err := url.Parse(namespaceURL)
 	if err != nil {
 		return r, oi, h, err
@@ -37,10 +36,6 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	reqURL := u.String() // prints http://foo/bar.html
 
 	data := url.Values{}
-	data.Set("type", "whole-object")
-	if annotation != "" {
-		data.Set("annotation", annotation)
-	}
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
 		logDMsg(fmt.Sprintf("Couldn't create a request with namespaceURL %s", reqURL), err)
@@ -50,8 +45,6 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	req.Header.Set("Expect", "100-continue")
 	req.Host = hostHeader
 	req.URL.RawQuery = data.Encode()
-	// specify that annotation precede the object data
-	req.Header["X-HCP-CustomMetadataFirst"] = []string{"true"}
 
 	resp, err := hcp.Client().Do(req)
 	if debugFlag {
@@ -67,46 +60,15 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 	}
 
 	var (
-		totSz   int
-		objSz   int
-		annotSz int
-		doc     Document
+		objSz int
 	)
-	szStr := resp.Header.Get("Content-Length")
-	if szStr == "" {
-		szStr = resp.Header.Get("X-Hcp-Contentlength")
-	}
-	totSz, err = strconv.Atoi(szStr)
-	if err != nil {
-		closeResponse(resp)
-		return r, oi, h, fmt.Errorf("invalid content-length header %w", err)
-	}
 	objSz, err = strconv.Atoi(resp.Header.Get("X-Hcp-Size"))
 	if err != nil {
 		closeResponse(resp)
 		return r, oi, h, fmt.Errorf("invalid X-HCP-Size header %w", err)
 	}
-	if annotation != "" {
-		annotSz = totSz - objSz
-	}
-	reader := io.LimitReader(resp.Body, 1*1024*1024)
-	minioObjName := strings.TrimPrefix(object, "/rest/") // default MinIO object name to same as HCP, unless annotation dictates otherwise
+	minioObjName := strings.TrimPrefix(object, "/rest/") // default MinIO object name to same as HCP
 	metadata := make(map[string]string)
-	if annotSz > 0 {
-		annotationBuf := make([]byte, annotSz)
-		_, err := reader.Read(annotationBuf)
-		if err != nil {
-			closeResponse(resp)
-			return r, oi, h, fmt.Errorf("could not read annotation into buffer %w", err)
-		}
-		if err = xml.Unmarshal(annotationBuf, &doc); err != nil {
-			closeResponse(resp)
-			return r, oi, h, fmt.Errorf("annotation could not be unmarshalled %w", err)
-		}
-		minioObjName = doc.getMinIOObjectName()
-		metadata = doc.getObjectMetadata()
-	}
-	// Parse Last-Modified has http time format.
 	date, err := time.Parse(http.TimeFormat, resp.Header.Get("Last-Modified"))
 	if err != nil {
 		closeResponse(resp)
@@ -129,11 +91,5 @@ func (hcp *hcpBackend) GetObject(object, annotation string) (r io.ReadCloser, oi
 		Metadata:     resp.Header,
 	}
 
-	return struct {
-		io.Reader
-		io.Closer
-	}{Reader: reader, Closer: closeWrapper(func() error {
-		io.Copy(ioutil.Discard, resp.Body) // drain for connection re-use upon close.
-		return resp.Body.Close()
-	})}, oi, h, nil
+	return resp.Body, oi, h, nil
 }
