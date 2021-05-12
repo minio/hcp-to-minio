@@ -171,7 +171,7 @@ func (m *migrateState) init(ctx context.Context) {
 }
 
 func migrateObject(ctx context.Context, object string) error {
-	r, oi, _, err := hcp.GetObject(object)
+	r, oi, err := hcp.GetObject(object)
 	if err != nil {
 		return err
 	}
@@ -185,10 +185,7 @@ func migrateObject(ctx context.Context, object string) error {
 		return nil
 	}
 	_, err = minioClient.PutObject(ctx, minioBucket, oi.Key, r, oi.Size, miniogo.PutObjectOptions{
-		ContentType:  oi.ContentType,
-		UserMetadata: oi.UserMetadata,
 		Internal: miniogo.AdvancedPutOptions{
-			SourceETag:  oi.ETag,
 			SourceMTime: oi.LastModified,
 		},
 	})
