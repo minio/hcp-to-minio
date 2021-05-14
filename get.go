@@ -1,10 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"strings"
@@ -27,6 +29,7 @@ func closeResponse(resp *http.Response) {
 		resp.Body.Close()
 	}
 }
+
 func (hcp *hcpBackend) GetObject(object string) (r io.ReadCloser, oi miniogo.ObjectInfo, err error) {
 	u, err := url.Parse(namespaceURL)
 	if err != nil {
@@ -44,15 +47,48 @@ func (hcp *hcpBackend) GetObject(object string) (r io.ReadCloser, oi miniogo.Obj
 	req.Header.Set("Authorization", authToken)
 	req.Host = hostHeader
 	req.URL.RawQuery = data.Encode()
+	var start, connect, dns, tlsHandshake time.Time
+	var dnsLatency, ttfb, connectLatency, handshakeLatency time.Duration
+	trc := &httptrace.ClientTrace{
+		DNSStart: func(dsi httptrace.DNSStartInfo) { dns = time.Now() },
+		DNSDone: func(ddi httptrace.DNSDoneInfo) {
+			dnsLatency = time.Since(dns)
+		},
+
+		TLSHandshakeStart: func() { tlsHandshake = time.Now() },
+		TLSHandshakeDone: func(cs tls.ConnectionState, err error) {
+			handshakeLatency = time.Since(tlsHandshake)
+		},
+
+		ConnectStart: func(network, addr string) { connect = time.Now() },
+		ConnectDone: func(network, addr string, err error) {
+			connectLatency = time.Since(connect)
+		},
+
+		GotFirstResponseByte: func() {
+			ttfb = time.Since(start)
+		},
+	}
+
+	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trc))
+	start = time.Now()
 
 	resp, err := hcp.Client().Do(req)
 	if debugFlag {
 		console.Println(trace(req, resp))
 	}
+	hcp.sumLatency.connectLatency.Add(connectLatency)
+	hcp.sumLatency.dnsLatency.Add(dnsLatency)
+	hcp.sumLatency.ttfb.Add(ttfb)
+	hcp.sumLatency.handshakeLatency.Add(handshakeLatency)
+	hcp.sumLatency.count.Inc()
+
 	if err != nil {
 		logDMsg(fmt.Sprintf("Get HCP object failed for %s", req.RequestURI), err)
 		return r, oi, err
 	}
+	logMsg(fmt.Sprintf("HCP DNS Done: %s TLS Handshake: %s Connect time: %s TTFB: %s req# %d", dnsLatency, handshakeLatency, connectLatency, ttfb, hcp.sumLatency.count.Load()))
+
 	if resp.StatusCode != http.StatusOK {
 		closeResponse(resp)
 		return r, oi, fmt.Errorf("bad request Status:%d", resp.StatusCode)

@@ -9,7 +9,17 @@ import (
 	"net"
 	"net/http"
 	"time"
+
+	"go.uber.org/atomic"
 )
+
+type aggLatency struct {
+	dnsLatency       atomic.Duration
+	ttfb             atomic.Duration
+	connectLatency   atomic.Duration
+	handshakeLatency atomic.Duration
+	count            atomic.Uint64
+}
 
 type hcpBackend struct {
 	// "https://namespace-name.tenant-name.hcp-domain-name/rest
@@ -20,6 +30,16 @@ type hcpBackend struct {
 	Password   string // optional - if auth token not provided
 	authToken  string
 	hostHeader string
+	sumLatency aggLatency
+}
+
+func (hcp *hcpBackend) printLatencyStats() {
+	totReq := int64(hcp.sumLatency.count.Load())
+	avgHandshakeLatency := time.Duration(int64(hcp.sumLatency.handshakeLatency.Load()) / totReq)
+	avgttfb := time.Duration(int64(hcp.sumLatency.ttfb.Load()) / totReq)
+	avgdnsLatency := time.Duration(int64(hcp.sumLatency.dnsLatency.Load()) / totReq)
+	avgConnectLatency := time.Duration(int64(hcp.sumLatency.connectLatency.Load()) / totReq)
+	fmt.Println("HCP Latency Stats - DNS Done: ", avgdnsLatency, " TLS Handshake: ", avgHandshakeLatency, " Connect time: ", avgConnectLatency, " TTFB: ", avgttfb)
 }
 
 func (hcp *hcpBackend) Client() *http.Client {

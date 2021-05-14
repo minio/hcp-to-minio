@@ -212,6 +212,7 @@ func migrateAction(cliCtx *cli.Context) error {
 		latency := end.Sub(start).Seconds()
 		count := migrationState.getCount() - migrationState.getFailCount()
 		logMsg(fmt.Sprintf("Migrated %s / %s objects with latency %d secs", humanize.Comma(int64(count)), humanize.Comma(int64(migrationState.getCount())), int64(latency)))
+		hcp.printLatencyStats()
 	}
 	return nil
 }
