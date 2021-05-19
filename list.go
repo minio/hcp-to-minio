@@ -74,7 +74,7 @@ func getFileName(fname, prefix string) string {
 	return fmt.Sprintf("%s_%s%s", fname, prefix, time.Now().Format(".01-02-2006-15-04-05"))
 }
 func (hcp *hcpBackend) downloadObjectList(ctx context.Context, prefix string) error {
-	f, err := os.OpenFile(path.Join(dirPath, getFileName(objListFile, prefix)), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(path.Join(dirPath, getFileName(objListFile, prefix)), os.O_CREATE|os.O_WRONLY|os.O_TRUNC|os.O_SYNC, 0600)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,10 @@ func (hcp *hcpBackend) downloadObjectList(ctx context.Context, prefix string) er
 readloop:
 	for {
 		select {
-		case entry := <-entryCh:
+		case entry, ok := <-entryCh:
+			if !ok {
+				break readloop
+			}
 			if entry.EntryType != "object" {
 				logDMsg("received non object entry in channel>"+entry.objectPath, nil)
 				continue
@@ -118,7 +121,7 @@ readloop:
 		case <-readDone:
 			log.Printf(`got stop`)
 			close(jobs)
-			break readloop
+			close(entryCh)
 		}
 	}
 	datawriter.Flush()
